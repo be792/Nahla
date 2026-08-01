@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول وإنشاء حساب</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        input:focus {
+            border-color: #007bff;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #888;
+            cursor: not-allowed;
+        }
+        .toggle-btn {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+        .toggle-btn span {
+            color: #007bff;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .alert {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        .alert-error { background: #ffe6e6; color: #d9534f; }
+        .alert-success { background: #e6ffe6; color: #5cb85c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="alertBox" class="alert"></div>
+
+    <!-- نموذج تسجيل الدخول -->
+    <form id="loginForm">
+        <h2>تسجيل الدخول</h2>
+        <div class="form-group">
+            <label>اسم المستخدم أو البريد الإلكتروني</label>
+            <input type="text" id="loginIdentifier" required>
+        </div>
+        <div class="form-group">
+            <label>كلمة المرور</label>
+            <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" id="loginBtn">دخول</button>
+        <div class="toggle-btn">
+            ليس لديك حساب؟ <span onclick="switchForm('register')">إنشاء حساب جديد</span>
+        </div>
+    </form>
+
+    <!-- نموذج إنشاء حساب -->
+    <form id="registerForm" style="display: none;">
+        <h2>إنشاء حساب جديد</h2>
+        <div class="form-group">
+            <label>اسم المستخدم</label>
+            <input type="text" id="regUsername" required>
+        </div>
+        <div class="form-group">
+            <label>البريد الإلكتروني</label>
+            <input type="email" id="regEmail" required>
+        </div>
+        <div class="form-group">
+            <label>كلمة المرور</label>
+            <input type="password" id="regPassword" required>
+        </div>
+        <button type="submit" id="regBtn">تسجيل</button>
+        <div class="toggle-btn">
+            لديك حساب بالفعل؟ <span onclick="switchForm('login')">تسجيل الدخول</span>
+        </div>
+    </form>
+</div>
+
+<script>
+    // ==========================================
+    // 1. إعدادات قاعدة البيانات (ضع بياناتك هنا)
+    // ==========================================
+    const BIN_ID = '6a6e17b5da38895dfead085d';
+    const MASTER_KEY = '$2a$10$Lbi7Ec/Jo5XBK7HHo3OWfeCT8nR7n7oWmF0zbmAVRWRyRvF5wi6Dy';
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    // ==========================================
+    // 2. التحقق التلقائي من الجلسة المحفوظة
+    // ==========================================
+    // فور فتح الصفحة: إذا كان المستخدم مسجلاً سابقاً في ذاكرة الهاتف، يتم توجيهه فوراً
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            window.location.href = 'factory.html';
+        }
+    });
+
+    // ==========================================
+    // 3. الدوال المساعدة (عرض التنبيهات والتبديل)
+    // ==========================================
+    function switchForm(type) {
+        document.getElementById('loginForm').style.display = type === 'login' ? 'block' : 'none';
+        document.getElementById('registerForm').style.display = type === 'register' ? 'block' : 'none';
+        hideAlert();
+    }
+
+    function showAlert(msg, isSuccess = false) {
+        const box = document.getElementById('alertBox');
+        box.className = `alert ${isSuccess ? 'alert-success' : 'alert-error'}`;
+        box.innerText = msg;
+        box.style.display = 'block';
+    }
+
+    function hideAlert() {
+        document.getElementById('alertBox').style.display = 'none';
+    }
+
+    // ==========================================
+    // 4. التعامل مع JSONBin (قراءة وحفظ القائمة)
+    // ==========================================
+    // جلب كل المستخدمين من السحابة
+    async function getUsers() {
+        try {
+            const res = await fetch(`${API_URL}/latest`, {
+                headers: { 'X-Master-Key': MASTER_KEY }
+            });
+            const data = await res.json();
+            return data.record || [];
+        } catch (e) {
+            showAlert("خطأ في الاتصال بقاعدة البيانات");
+            return [];
+        }
+    }
+
+    // حفظ القائمة المحدثة في السحابة
+    async function saveUsers(usersList) {
+        const res = await fetch(API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': MASTER_KEY
+            },
+            body: JSON.stringify(usersList)
+        });
+        return res.ok;
+    }
+
+    // ==========================================
+    // 5. عملية إنشاء حساب جديد (Register)
+    // ==========================================
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('regBtn');
+        btn.disabled = true;
+        btn.innerText = "جاري التسجيل...";
+
+        const username = document.getElementById('regUsername').value.trim();
+        const email = document.getElementById('regEmail').value.trim().toLowerCase();
+        const password = document.getElementById('regPassword').value;
+
+        const users = await getUsers();
+
+        // التأكد من عدم تكرار اسم المستخدم أو البريد
+        const usernameExists = users.some(u => u.username.toLowerCase() === username.toLowerCase());
+        const emailExists = users.some(u => u.email === email);
+
+        if (usernameExists) {
+            showAlert("اسم المستخدم مسجل بالفعل!");
+        } else if (emailExists) {
+            showAlert("البريد الإلكتروني مسجل بالفعل!");
+        } else {
+            // إضافة البيانات للمصفوفة
+            users.push({
+                username: username,
+                email: email,
+                password: password,
+                createdAt: new Date().toISOString()
+            });
+
+            const saved = await saveUsers(users);
+            if (saved) {
+                showAlert("تم إنشاء الحساب بنجاح! يمكنك الدخول الآن.", true);
+                setTimeout(() => switchForm('login'), 1500);
+            } else {
+                showAlert("حدث خطأ أثناء حفظ البيانات.");
+            }
+        }
+        btn.disabled = false;
+        btn.innerText = "تسجيل";
+    });
+
+    // ==========================================
+    // 6. عملية تسجيل الدخول (Login)
+    // ==========================================
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        btn.innerText = "جاري التحقق...";
+
+        const identifier = document.getElementById('loginIdentifier').value.trim().toLowerCase();
+        const password = document.getElementById('loginPassword').value;
+
+        const users = await getUsers();
+
+        // مطابقة الحساب
+        const user = users.find(u => 
+            (u.username.toLowerCase() === identifier || u.email === identifier) && 
+            u.password === password
+        );
+
+        if (user) {
+            showAlert(`مرحبًا بك، ${user.username}! جاري التوجيه...`, true);
+
+            // 1. حفظ الجلسة محلياً في ذاكرة المتصفح
+            localStorage.setItem('currentUser', JSON.stringify({
+                username: user.username,
+                email: user.email
+            }));
+
+            // 2. التوجيه لصفحة factory.html
+            setTimeout(() => {
+                window.location.href = 'factory.html';
+            }, 1000);
+
+        } else {
+            showAlert("اسم المستخدم أو كلمة المرور غير صحيحة.");
+            btn.disabled = false;
+            btn.innerText = "دخول";
+        }
+    });
+</script>         
+
+</body>
+</html>

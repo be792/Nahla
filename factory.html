@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>مملكة النحل والعسل - نسخة الجاذبية</title>
+    <style>
+        :root {
+            --primary-color: #ffb300; 
+            --secondary-color: #ffe082;
+            --dark-color: #2e2400;
+            --accent-color: #ff5722;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--dark-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            max-height: 850px;
+            background: linear-gradient(to bottom, #e3f2fd, #bbdefb); 
+            border: 6px solid var(--primary-color);
+            border-radius: 15px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* شريط الحالة العلوي */
+        #status-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 12px;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            color: var(--dark-color);
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .icon {
+            font-size: 1.1rem;
+        }
+
+        /* أزرار التحكم الفوقية */
+        .btn-round {
+            background: var(--primary-color);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: var(--dark-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-weight: bold;
+        }
+
+        /* مساحة اللعبة الرسم */
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* واجهات العرض (الشاشات) */
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(46, 36, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .screen-overlay h1 {
+            color: var(--primary-color);
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 8px rgba(255, 179, 0, 0.4);
+        }
+
+        .screen-overlay p {
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            color: #ffe082;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 80%;
+        }
+
+        .btn-action {
+            background: linear-gradient(45deg, #ffb300, #ff8f00);
+            color: var(--dark-color);
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 143, 0, 0.4);
+            transition: transform 0.1s;
+        }
+
+        .btn-action.btn-secondary {
+            background: linear-gradient(45deg, #81c784, #4caf50);
+            color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-action:active {
+            transform: scale(0.95);
+        }
+
+        .hide {
+            display: none !important;
+        }
+
+        /* إشعار عائم عند التحول لمستوى جديد */
+        #level-toast {
+            position: absolute;
+            top: 18%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 235, 59, 0.95);
+            color: var(--dark-color);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 8;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            text-align: center;
+            border: 3px solid var(--accent-color);
+        }
+
+        #level-toast.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- شريط الحالة -->
+        <div id="status-bar">
+            <div class="stat-item">
+                <span class="icon">🌸</span>
+                <span id="score-text">النقاط: 0/200</span>
+            </div>
+            <div class="stat-item">
+                <span class="icon">🍯</span>
+                <span id="honey-text">رصيد العسل: 0</span>
+            </div>
+            <div class="stat-item">
+                <span id="level-text">مستوى 1</span>
+            </div>
+            <button class="btn-round" id="pause-btn" onclick="togglePause()">⏸</button>
+        </div>
+
+        <!-- شاشة البداية -->
+        <div id="start-screen" class="screen-overlay">
+            <h1>مملكة النحل السعيدة</h1>
+            <p>انقر على الشاشة لجعل النحلة تطير للأعلى 🐝 لتجمع الأزهار وتتجنب الزنابير المسرعة من اليمين!<br>
+            ستتحول نقاطك إلى عسل دائم عند تجميع 200 نقطة!</p>
+            <div class="btn-group">
+                <button class="btn-action" onclick="startGame(false)">ابدأ رحلة جديدة</button>
+            </div>
+        </div>
+
+        <!-- شاشة التوقف المؤقت -->
+        <div id="pause-screen" class="screen-overlay hide">
+            <h1>تم إيقاف اللعب</h1>
+            <p>رصيدك من العسل محفوظ دائماً.</p>
+            <div class="btn-group">
+                <button class="btn-action" onclick="togglePause()">استمرار اللعب</button>
+            </div>
+        </div>
+
+        <!-- شاشة نهاية اللعبة / خيار الاستمرار -->
+        <div id="gameover-screen" class="screen-overlay hide">
+            <h1 id="gameover-title">احترس من الزنابير!</h1>
+            <p id="gameover-details">لقد تمت عرقلتك بواسطة زنبور غاضب.</p>
+            
+            <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px; width: 85%;">
+                <p style="margin: 5px 0;">العسل المكتسب حالياً: <span id="run-honey" style="color:var(--primary-color); font-weight:bold;">0 🍯</span></p>
+                <p style="margin: 5px 0;">إجمالي رصيد العسل المحفوظ: <span id="total-honey" style="color:#ffb300; font-weight:bold;">0 🍯</span></p>
+                <p style="margin: 5px 0;">أعلى مستوى وصلته: <span id="final-level" style="color:#81c784; font-weight:bold;">1 ⭐</span></p>
+            </div>
+
+            <div class="btn-group">
+                <button id="continue-btn" class="btn-action btn-secondary" onclick="continueGame()">استمرار اللعب (فرصة واحدة) 🩹</button>
+                <button class="btn-action" onclick="startGame(true)">لعب جولة جديدة</button>
+            </div>
+        </div>
+
+        <!-- إشعار الترقية -->
+        <div id="level-toast">
+            🎉 مستوى جديد! 🎉<br>
+            <span style="font-size: 1rem; font-weight: normal;">تم تحويل 200 نقطة إلى عسل محفوظ... 🍯</span>
+        </div>
+
+        <!-- ساحة رسم اللعبة -->
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        resizeCanvas();
+
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'collect') { 
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.08); 
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'lose') { 
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.45);
+                } else if (type === 'levelup') { 
+                    const notes = [329.63, 392.00, 523.25, 659.25]; 
+                    notes.forEach((freq, index) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(freq, audioCtx.currentTime + (index * 0.08));
+                        g.gain.setValueAtTime(0.15, audioCtx.currentTime + (index * 0.08));
+                        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (index * 0.08) + 0.12);
+                        o.start(audioCtx.currentTime + (index * 0.08));
+                        o.stop(audioCtx.currentTime + (index * 0.08) + 0.12);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        let stats = { lifetimeHoney: 0 };
+        function loadStats() {
+            const saved = localStorage.getItem('beeGameProgress');
+            if (saved) {
+                try {
+                    stats = JSON.parse(saved);
+                } catch (e) {
+                    stats = { lifetimeHoney: 0 };
+                }
+            }
+        }
+        function saveStats() {
+            localStorage.setItem('beeGameProgress', JSON.stringify(stats));
+        }
+
+        let gameActive = false;
+        let isPaused = false;
+        let score = 0;
+        let currentRunHoney = 0; 
+        let level = 1;
+        let hasUsedContinue = false; 
+        
+        let bee;
+        let flowers = [];
+        let wasps = [];
+        let backgroundClouds = [];
+
+        class Bee {
+            constructor() {
+                this.x = 60; // تثبيت النحلة على جهة اليسار
+                this.y = canvas.height / 2;
+                this.radius = 14; 
+                this.velocity = 0; // سرعة الحركة العمودية الحالية
+                this.gravity = 0.35; // قوة الجاذبية لأسفل
+                this.jumpStrength = -6.5; // قوة الدفع للأعلى عند النقر
+                this.invincible = false;
+                this.invincibilityFrames = 0; 
+            }
+
+            draw() {
+                if (this.invincible && Math.floor(Date.now() / 100) % 2 === 0) {
+                    return; 
+                }
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // تدوير طفيف للنحلة بناءً على سرعتها العمودية لإعطاء طابع حركي مميز
+                const angle = Math.min(Math.max(this.velocity * 0.05, -0.5), 0.5);
+                ctx.rotate(angle);
+
+                const wingWobble = Math.sin(Date.now() * 0.04) * 10;
+
+                // أجنحة
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.ellipse(-10, -15 + wingWobble/4, 8, 15, -Math.PI/6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(10, -15 - wingWobble/4, 8, 15, Math.PI/6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                if (this.invincible) {
+                    ctx.strokeStyle = 'rgba(76, 175, 80, 0.5)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = '#ffeb3b';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 18, 14, 0, 0, Math.PI*2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#212121';
+                ctx.fillRect(-8, -13, 4, 26);
+                ctx.fillRect(2, -13, 4, 26);
+
+                ctx.beginPath();
+                ctx.moveTo(-18, 0);
+                ctx.lineTo(-24, -3);
+                ctx.lineTo(-24, 3);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(10, -4, 2, 0, Math.PI*2);
+                ctx.arc(10, 4, 2, 0, Math.PI*2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            update() {
+                // تطبيق الجاذبية على السرعة العمودية
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+
+                // منع النحلة من الخروج أسفل الشاشة
+                if (this.y > canvas.height - this.radius - 10) {
+                    this.y = canvas.height - this.radius - 10;
+                    this.velocity = 0;
+                }
+                // منع النحلة من الخروج أعلى الشاشة وتجنب منطقة شريط الحالة
+                if (this.y < this.radius + 50) {
+                    this.y = this.radius + 50;
+                    this.velocity = 0;
+                }
+
+                if (this.invincible) {
+                    this.invincibilityFrames--;
+                    if (this.invincibilityFrames <= 0) {
+                        this.invincible = false;
+                    }
+                }
+            }
+
+            // قفزة للأعلى عند النقر
+            jump() {
+                this.velocity = this.jumpStrength;
+            }
+        }
+
+        class Flower {
+            constructor() {
+                this.reset();
+                this.x = canvas.width + Math.random() * 300;
+            }
+
+            reset() {
+                this.radius = 18; 
+                this.x = canvas.width + 20 + Math.random() * 150;
+                this.y = 60 + Math.random() * (canvas.height - 110);
+                this.speed = 1.5 + Math.random() * 1.5 + (level * 0.15); 
+                
+                const colors = ['#e91e63', '#9c27b0', '#ff5722', '#e040fb', '#00e5ff'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.fillStyle = this.color;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    const angle = (i * Math.PI * 2) / 5;
+                    ctx.arc(Math.cos(angle) * 10, Math.sin(angle) * 10, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = '#ffca28';
+                ctx.beginPath();
+                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            update() {
+                this.x -= this.speed;
+                if (this.x < -20) {
+                    this.reset();
+                }
+            }
+        }
+
+        class Wasp {
+            constructor() {
+                this.reset();
+                this.x = canvas.width + 100 + Math.random() * 400;
+            }
+
+            reset() {
+                this.radius = 15;
+                this.x = canvas.width + 30 + Math.random() * 300;
+                this.y = 60 + Math.random() * (canvas.height - 110);
+                this.speed = 1.8 + Math.random() * 1.5 + (level * 0.15);
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.fillStyle = 'rgba(100, 110, 120, 0.6)';
+                ctx.beginPath();
+                ctx.ellipse(-8, -12, 6, 12, -Math.PI/4, 0, Math.PI * 2);
+                ctx.ellipse(8, -12, 6, 12, Math.PI/4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ff1744'; 
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 15, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#212121';
+                ctx.fillRect(-6, -11, 4, 22);
+                ctx.fillRect(2, -11, 4, 22);
+
+                ctx.fillStyle = '#ff1744';
+                ctx.beginPath();
+                ctx.arc(6, -3, 3, 0, Math.PI*2);
+                ctx.arc(6, 3, 3, 0, Math.PI*2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            update() {
+                this.x -= this.speed;
+                this.y += Math.sin(this.x * 0.04) * 1.2; 
+
+                if (this.x < -30) {
+                    this.reset();
+                }
+            }
+        }
+
+        class Cloud {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = 30 + Math.random() * 40;
+                this.speed = 0.2 + Math.random() * 0.3;
+            }
+
+            draw() {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.arc(this.x + this.size*0.6, this.y - this.size*0.2, this.size*0.8, 0, Math.PI*2);
+                ctx.arc(this.x - this.size*0.6, this.y - this.size*0.2, this.size*0.8, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            update() {
+                this.x -= this.speed;
+                if (this.x + this.size * 2 < 0) {
+                    this.x = canvas.width + this.size * 2;
+                    this.y = Math.random() * canvas.height;
+                }
+            }
+        }
+
+        function startGame(resetCurrentStats = true) {
+            initAudio();
+            loadStats();
+
+            document.getElementById('start-screen').classList.add('hide');
+            document.getElementById('gameover-screen').classList.add('hide');
+            document.getElementById('pause-screen').classList.add('hide');
+
+            score = 0;
+            if (resetCurrentStats) {
+                currentRunHoney = 0;
+                level = 1;
+                hasUsedContinue = false;
+            }
+
+            bee = new Bee();
+            flowers = [new Flower(), new Flower(), new Flower()];
+            wasps = [new Wasp(), new Wasp()];
+            backgroundClouds = [new Cloud(), new Cloud(), new Cloud()];
+
+            gameActive = true;
+            isPaused = false;
+            document.getElementById('pause-btn').innerText = "⏸";
+
+            updateUI();
+            gameLoop();
+        }
+
+        function togglePause() {
+            if (!gameActive) return;
+            isPaused = !isPaused;
+            const pauseScreen = document.getElementById('pause-screen');
+            const pauseBtn = document.getElementById('pause-btn');
+
+            if (isPaused) {
+                pauseScreen.classList.remove('hide');
+                pauseBtn.innerText = "▶";
+            } else {
+                pauseScreen.classList.add('hide');
+                pauseBtn.innerText = "⏸";
+                gameLoop();
+            }
+        }
+
+        function checkLevelUp() {
+            if (score >= 200) {
+                level++;
+                currentRunHoney += 1; 
+                stats.lifetimeHoney += 1; 
+                saveStats();
+
+                score = 0; 
+                playSound('levelup');
+                showLevelToast();
+
+                if (level % 2 === 0) {
+                    wasps.push(new Wasp());
+                }
+            }
+        }
+
+        function showLevelToast() {
+            const toast = document.getElementById('level-toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function triggerGameOver() {
+            gameActive = false;
+            playSound('lose');
+
+            const screen = document.getElementById('gameover-screen');
+            const contBtn = document.getElementById('continue-btn');
+            
+            screen.classList.remove('hide');
+            document.getElementById('run-honey').innerText = `${currentRunHoney} 🍯`;
+            document.getElementById('total-honey').innerText = `${stats.lifetimeHoney} 🍯`;
+            document.getElementById('final-level').innerText = `${level} ⭐`;
+
+            if (hasUsedContinue) {
+                contBtn.classList.add('hide');
+                document.getElementById('gameover-title').innerText = "انتهت الجولة تماماً!";
+            } else {
+                contBtn.classList.remove('hide');
+                document.getElementById('gameover-title').innerText = "احترس من الزنابير!";
+            }
+        }
+
+        function continueGame() {
+            if (hasUsedContinue) return;
+            hasUsedContinue = true;
+
+            document.getElementById('gameover-screen').classList.add('hide');
+
+            wasps.forEach(w => w.reset());
+
+            bee.invincible = true;
+            bee.invincibilityFrames = 180;
+            bee.velocity = -4; // دفعة صغيرة للأعلى عند المتابعة لكي لا تسقط فوراً
+
+            gameActive = true;
+            updateUI();
+            gameLoop();
+        }
+
+        function updateUI() {
+            document.getElementById('score-text').innerText = `النقاط: ${score}/200`;
+            document.getElementById('honey-text').innerText = `العسل: ${stats.lifetimeHoney}`;
+            document.getElementById('level-text').innerText = `مستوى ${level}`;
+        }
+
+        function getDistance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        }
+
+        function gameLoop() {
+            if (!gameActive || isPaused) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            backgroundClouds.forEach(cloud => {
+                cloud.update();
+                cloud.draw();
+            });
+
+            bee.update();
+            bee.draw();
+
+            // الزهور
+            flowers.forEach(flower => {
+                flower.update();
+                flower.draw();
+
+                if (getDistance(bee.x, bee.y, flower.x, flower.y) < bee.radius + flower.radius) {
+                    score += 20; 
+                    playSound('collect');
+                    flower.reset();
+                    checkLevelUp();
+                    updateUI();
+                }
+            });
+
+            // الزنابير
+            for (let wasp of wasps) {
+                wasp.update();
+                wasp.draw();
+
+                if (!bee.invincible && getDistance(bee.x, bee.y, wasp.x, wasp.y) < (bee.radius + wasp.radius) - 2) {
+                    triggerGameOver();
+                    return;
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // معالجة اللمس والنقر للقفز (تحدي الجاذبية)
+        function triggerJump(e) {
+            if (!gameActive || isPaused) return;
+            initAudio();
+            if (bee) {
+                bee.jump();
+            }
+        }
+
+        // تفعيل النقر للهواتف وأجهزة الكمبيوتر
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // منع السلوك الافتراضي مثل التكبير
+            triggerJump(e);
+        }, { passive: false });
+
+        canvas.addEventListener('mousedown', (e) => {
+            triggerJump(e);
+        });
+
+        loadStats();
+        updateUI();
+
+    </script>
+</body>
+</html>
